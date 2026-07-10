@@ -19,8 +19,19 @@ export PORT="${PORT:-27015}"
 export EXEC="${EXEC:-on_boot.cfg}"
 export LAN="${LAN:-0}"
 export SERVER_PASSWORD="${SERVER_PASSWORD:-}"
-export RCON_HOST="${RCON_HOST:-127.0.0.1}"
 export RCON_PORT="${RCON_PORT:-27015}"
+
+# CS2 binds RCON to the container's primary interface (eth0), NOT loopback, so
+# 127.0.0.1 gets "connection refused". Detect this container's IPv4 and use it
+# unless the operator set an explicit non-loopback RCON_HOST. rcon-cli reads the
+# RCON_HOST env var (it overrides the config file), and the Hermes gateway +
+# its rcon-cli subprocesses inherit this exported value.
+_container_ip="$(hostname -i 2>/dev/null | tr ' ' '\n' | grep -m1 -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')"
+case "${RCON_HOST:-}" in
+  ""|127.0.0.1|localhost) RCON_HOST="${_container_ip:-127.0.0.1}" ;;
+esac
+export RCON_HOST
+log "RCON target: ${RCON_HOST}:${RCON_PORT}"
 
 if [ -z "${RCON_PASSWORD:-}" ]; then
   log "FATAL: RCON_PASSWORD is empty. It is the server admin password AND how the"
