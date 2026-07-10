@@ -29,6 +29,6 @@ jobs:
         with:
           context: .
           push: false
-          tags: cs2-hermes-admin:ci
+          tags: cs2-hermes:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max

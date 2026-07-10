@@ -3,7 +3,7 @@
 #   git pull
 #   docker compose up -d --build        # build the thin layer + run
 #   docker compose build --pull         # also refresh the base image
-#   docker logs -f cs2-hermes-admin
+#   docker logs -f cs2-hermes
 #
 # First run downloads the base image + CS2 (several GB) and is slow.
 
@@ -14,8 +14,8 @@ services:
       dockerfile: Dockerfile
       # args:
       #   BASE_IMAGE: ghcr.io/kus/cs2-modded-server:latest   # pin to a digest for reproducible builds
-    image: cs2-hermes-admin:latest
-    container_name: cs2-hermes-admin
+    image: cs2-hermes:latest
+    container_name: cs2-hermes
     env_file:
       - .env
     volumes:

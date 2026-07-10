@@ -1,4 +1,4 @@
-# cs2-hermes-admin
+# cs2-hermes
 
 A **Counter-Strike 2 modded server with a resident AI admin** in one container.
 It layers a pre-configured **[Hermes Agent](https://hermes-agent.nousresearch.com)**
@@ -19,11 +19,11 @@ Because it's `FROM ghcr.io/kus/cs2-modded-server:latest`, the machine pulls the
 base image and builds only the thin Hermes layer. No registry account needed.
 
 ```bash
-git clone https://github.com/OWNER/cs2-hermes-admin.git
-cd cs2-hermes-admin
+git clone git@github.com:bobylevd/cs2-hermes.git
+cd cs2-hermes
 cp .env.example .env      # fill in RCON_PASSWORD, LLM backend, gateway token
 docker compose up -d --build
-docker logs -f cs2-hermes-admin
+docker logs -f cs2-hermes
 ```
 
 First run downloads the base image + CS2 (several GB) — be patient. Once the
@@ -36,7 +36,7 @@ docker compose up -d --build          # rebuild the layer + restart
 docker compose build --pull && docker compose up -d   # also refresh the base image
 ```
 
-Prefer a terminal instead of chat? `docker exec -it cs2-hermes-admin hermes`.
+Prefer a terminal instead of chat? `docker exec -it cs2-hermes hermes`.
 
 ## Configure (`.env`)
 
@@ -103,7 +103,7 @@ server. Delete it if you don't want CI.
   is the real test.
 - Hermes' `gateway:`/`platforms:` config keys are version-dependent; tokens are
   also exported as env vars in the container as a fallback. See
-  `docker exec -it cs2-hermes-admin hermes --help`.
+  `docker exec -it cs2-hermes hermes --help`.
 
 ## Customizing
 
