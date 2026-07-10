@@ -13,7 +13,7 @@ USER root
 
 # Tools for fetching Hermes + rcon-cli.
 RUN apt-get update --fix-missing \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && apt-get install -y --no-install-recommends curl ca-certificates ripgrep \
     && rm -rf /var/lib/apt/lists/*
 
 # --- rcon-cli: single static binary for live server control ---------------- #
@@ -36,6 +36,14 @@ ENV HERMES_INSTALL_DIR=/usr/local/lib/hermes-agent
 RUN mkdir -p /opt/hermes/seed/hermes_home \
     && HERMES_HOME=/opt/hermes/seed/hermes_home \
        bash -c 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-setup --skip-browser' \
+    # The installer's launcher shim lands in root's ~/.local/bin, which the steam
+    # user can't reach. Symlink the real venv entrypoint onto the global PATH and
+    # make the code tree world-readable/executable.
+    && HERMES_ENTRY="$(ls /usr/local/lib/hermes-agent/venv/bin/hermes 2>/dev/null \
+         || find /usr/local/lib/hermes-agent -type f -name hermes 2>/dev/null | head -1)" \
+    && test -n "$HERMES_ENTRY" \
+    && ln -sf "$HERMES_ENTRY" /usr/local/bin/hermes \
+    && chmod -R a+rX /usr/local/lib/hermes-agent \
     && test -x /usr/local/bin/hermes
 
 # --- Our identity, project context, config, and admin skills --------------- #

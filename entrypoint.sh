@@ -96,9 +96,13 @@ supervise_cs2() {
   done
 }
 
-log "Starting Hermes gateway (platform: ${GATEWAY_PLATFORM:-telegram})..."
+# Foreground gateway command differs across Hermes versions: newer builds use
+# `hermes gateway run`, older `hermes gateway`. Detect which this build has.
+GW="gateway"
+if hermes gateway --help 2>&1 | grep -qw run; then GW="gateway run"; fi
+log "Starting Hermes gateway ($GW; platform: ${GATEWAY_PLATFORM:-telegram})..."
 cd "$HOME"
-hermes gateway &
+hermes $GW &
 HERMES_PID=$!
 
 supervise_cs2 &
