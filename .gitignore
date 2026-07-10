@@ -5,5 +5,8 @@
 custom_files/*
 !custom_files/.gitkeep
 
+# Hermes runtime state (SOUL.md, skills, memory) — host-mounted, machine-local
+hermes-data/
+
 # JetBrains IDE
 .idea/

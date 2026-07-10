@@ -45,13 +45,13 @@ export HERMES_HOME
 SEED_DIR="/opt/hermes/seed"
 
 # ---- seed Hermes home ($HERMES_HOME) -------------------------------------- #
-# Bundled agent assets are copied only if missing (preserve self-authored
-# skills/memory across restarts); our identity + config always refresh; .env is
-# regenerated from the container environment (the authoritative config surface).
+# Everything here is seeded ONLY IF ABSENT so that edits Hermes (or you) make at
+# runtime survive restarts — SOUL.md, USER.md, self-authored skills, and memory
+# all persist. The one exception is config.yaml (machine plumbing / ${VAR}
+# templating), which we always refresh so image fixes ship. .env is regenerated
+# from the container environment (the authoritative config surface).
 mkdir -p "$HERMES_HOME"
 cp -rn "$SEED_DIR/hermes_home/." "$HERMES_HOME/" 2>/dev/null || true
-cp -f "$SEED_DIR/hermes_home/SOUL.md"    "$HERMES_HOME/SOUL.md"    2>/dev/null || true
-cp -f "$SEED_DIR/hermes_home/USER.md"    "$HERMES_HOME/USER.md"    2>/dev/null || true
 cp -f "$SEED_DIR/hermes_home/config.yaml" "$HERMES_HOME/config.yaml"
 {
   echo "# Auto-generated from the container environment on every boot."
@@ -65,8 +65,9 @@ cp -f "$SEED_DIR/hermes_home/config.yaml" "$HERMES_HOME/config.yaml"
 chmod 600 "$HERMES_HOME/.env"
 
 # ---- AGENTS.md into the server root (loaded as project context) ----------- #
+# Seed only if absent so runtime edits persist (delete it to reseed from image).
 mkdir -p "$HOME"
-cp -f "$SEED_DIR/AGENTS.md" "$HOME/AGENTS.md"
+cp -n "$SEED_DIR/AGENTS.md" "$HOME/AGENTS.md" 2>/dev/null || true
 
 # ---- rcon-cli config so the agent runs `rcon-cli "<cmd>"` with no secrets --- #
 cat > "$HOME/.rcon-cli.yaml" <<EOF
