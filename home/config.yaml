@@ -1,0 +1,53 @@
+# Hermes Agent configuration for the CS2 modded-server admin container.
+#
+# Seeded to $HERMES_HOME/config.yaml at boot. Secrets/backend/token come from
+# $HERMES_HOME/.env at runtime via ${VAR} interpolation, so the image ships no
+# secrets. See ../env.example for the variables.
+
+# --------------------------------------------------------------------------- #
+# LLM backend — OpenAI-compatible by default (Kimi-for-coding / Moonshot,
+# OpenAI Codex, or any OpenAI-compatible endpoint). Fully overridable via env.
+# --------------------------------------------------------------------------- #
+model:
+  default: "${HERMES_MODEL}"
+  provider: "${HERMES_PROVIDER}"      # custom | openai-codex | anthropic | openai | auto
+  api_key: "${HERMES_API_KEY}"
+  base_url: "${HERMES_BASE_URL}"      # ignored by providers that don't need it
+
+# --------------------------------------------------------------------------- #
+# Terminal — the agent's hands. Runs shell commands locally, inside this
+# container, as the `steam` user (passwordless sudo). cwd is the server root so
+# AGENTS.md there loads as project context and paths are relative to the server.
+# --------------------------------------------------------------------------- #
+terminal:
+  backend: local
+  cwd: "/home/steam/cs2"
+  timeout: 300
+
+# --------------------------------------------------------------------------- #
+# Skills — the CS2 admin playbooks (read-only, shipped in the image). Hermes
+# also keeps its own self-authored skills + memory under $HERMES_HOME.
+# --------------------------------------------------------------------------- #
+skills:
+  creation_nudge_interval: 15
+  external_dirs:
+    - /opt/hermes/skills
+
+# --------------------------------------------------------------------------- #
+# Gateway / messaging — how the operator issues commands. Pick ONE platform via
+# GATEWAY_PLATFORM and supply its token in .env. Telegram is the default; a
+# Discord block is included, commented. (Exact keys can vary by Hermes version;
+# the token is also always available as an env var — see README-hermes.md.)
+# --------------------------------------------------------------------------- #
+gateway:
+  platform: "${GATEWAY_PLATFORM}"     # telegram | discord
+
+platforms:
+  telegram:
+    token: "${TELEGRAM_BOT_TOKEN}"
+    reply_to_mode: "first"
+    guest_mode: false
+
+  # discord:
+  #   token: "${DISCORD_BOT_TOKEN}"
+  #   require_mention: true

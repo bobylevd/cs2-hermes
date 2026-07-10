@@ -1,0 +1,8 @@
+# Keep the build context tiny — the Dockerfile only needs home/, skills/, entrypoint.sh.
+.git
+.github
+.env
+.env.example
+README.md
+docker-compose.yml
+custom_files

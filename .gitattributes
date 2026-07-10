@@ -1,0 +1,8 @@
+# Force LF so shell scripts run inside the Linux container regardless of the
+# committer's OS. CRLF on entrypoint.sh would break `#!/usr/bin/env bash`.
+* text=auto eol=lf
+*.sh    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+Dockerfile text eol=lf

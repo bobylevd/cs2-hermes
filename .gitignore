@@ -1,0 +1,6 @@
+# Secrets / runtime config
+.env
+
+# Runtime persistence state (the agent writes here); keep the dir, not contents
+custom_files/*
+!custom_files/.gitkeep
