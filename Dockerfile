@@ -46,13 +46,16 @@ RUN mkdir -p /opt/hermes/seed/hermes_home \
     && chmod -R a+rX /usr/local/lib/hermes-agent \
     && test -x /usr/local/bin/hermes
 
-# Messaging adapters (Telegram/Discord/Slack) — the `messaging` extra. The base
-# install omits it, so the gateway can't connect to Telegram without this. The
-# uv-managed venv has no pip, so add it with the bundled uv.
+# Extras the base install omits but the gateway needs:
+#   - messaging: Telegram/Discord/Slack adapters (no adapter => can't connect)
+#   - anthropic: Hermes builds an Anthropic client at agent init for auxiliary
+#     features (title-gen/vision/fallback); its absence is fatal even when the
+#     main model is an OpenAI-compatible provider.
+# The uv-managed venv has no pip, so add them with the bundled uv.
 RUN /opt/hermes/seed/hermes_home/bin/uv pip install --link-mode=copy \
       --python /usr/local/lib/hermes-agent/venv/bin/python \
-      '/usr/local/lib/hermes-agent[messaging]' \
-    && /usr/local/lib/hermes-agent/venv/bin/python -c "import telegram, discord"
+      '/usr/local/lib/hermes-agent[messaging,anthropic]' \
+    && /usr/local/lib/hermes-agent/venv/bin/python -c "import telegram, discord, anthropic"
 
 # --- Our identity, project context, config, and admin skills --------------- #
 COPY home/SOUL.md     /opt/hermes/seed/hermes_home/SOUL.md
