@@ -1,87 +1,48 @@
-# Project Context: CS2 Modded Server
+# CS2 Modded Server — Project Context
 
-This machine runs a **Counter-Strike 2 dedicated server** using the
-[kus/cs2-modded-server](https://github.com/kus/cs2-modded-server) stack
-(Metamod:Source + CounterStrikeSharp + ~40 plugins). You are its admin. You have
-a shell here as the `steam` user, with **passwordless sudo**.
+You admin a Counter-Strike 2 dedicated server (kus/cs2-modded-server: Metamod +
+CounterStrikeSharp + ~40 plugins). Shell as `steam`, passwordless sudo. The `cs2-*`
+skills hold procedures; this is the map.
 
-Your `cs2/*` skills contain the step-by-step playbooks. This file is the map.
+## Persistence — how to change things (critical)
+`custom_files/` (host `./custom_files` → `/home/custom_files`) is the **durable
+override**. Every (re)start rebuilds live `csgo/` from baked mods then merges
+`custom_files/` on top. It is **not** a live overlay — edits there apply only on
+restart.
 
-## The one rule that will bite you: persistence
+- **Default (durable):** edit the file in `/home/custom_files/<same path as under
+  csgo/>` (copy it from `game/csgo/` or `/home/cs2-modded-server/` first if absent),
+  then restart to apply.
+- **No-downtime:** for things with a live reload (`css_admins_reload`,
+  `css_plugins reload`, `exec <cfg>`), also edit the live `game/csgo/<path>` and
+  reload — but the durable copy still lives in `custom_files` or it's lost on restart.
 
-On **every server (re)start**, the launch script does this, in order:
+Rule: the durable copy is always in `custom_files`; a live-only edit is temporary.
 
-1. `cp -R /home/cs2-modded-server/game/csgo/  →  /home/steam/cs2/game/csgo/`
-   (baked mod files **overwrite** the live server files)
-2. `cp -RT /home/custom_files/  →  /home/steam/cs2/game/csgo/`
-   (your `custom_files` are merged **on top**)
-
-**Therefore:** editing a file under `/home/steam/cs2/game/csgo/` gives an
-*immediate* effect, but it is **wiped on the next restart** unless you also mirror
-the change into `/home/custom_files/` at the same relative path.
-
-The persistence workflow for any config/plugin change is:
-1. Edit the **live** file (for immediate effect, usually + a reload command).
-2. Copy the same change into **`/home/custom_files/<same relative path>`** (so it
-   survives restarts and mod updates).
-3. Verify.
-
-## Key paths
-
+## Paths
 | What | Path |
-|------|------|
-| Server root (`$HOME`, your cwd) | `/home/steam/cs2` |
-| CS2 binary | `/home/steam/cs2/game/bin/linuxsteamrt64/cs2` |
-| Live game content (`csgo`) | `/home/steam/cs2/game/csgo` |
-| Config (cfg) files | `/home/steam/cs2/game/csgo/cfg` |
-| Gamemode cfgs (exec these) | `.../cfg/<mode>.cfg` (e.g. `retake.cfg`, `dm.cfg`, `gg.cfg`, `comp.cfg`) |
-| CounterStrikeSharp plugins (enabled) | `.../csgo/addons/counterstrikesharp/plugins/` |
-| Plugins available but off | `.../counterstrikesharp/plugins/disabled/` |
-| CSS configs (admins, core) | `.../counterstrikesharp/configs/` |
-| CSS logs | `.../counterstrikesharp/logs/` |
-| Metamod | `.../csgo/addons/metamod/` |
-| `gameinfo.gi` (metamod-patched) | `/home/steam/cs2/game/csgo/gameinfo.gi` |
-| Map groups / modes | `/home/steam/cs2/game/csgo/gamemodes_server.txt` |
-| **Persistence mirror** | `/home/custom_files/` (mirrors `csgo/`) |
-| Baked mod source | `/home/cs2-modded-server/` (installer copies from here) |
+|---|---|
+| Server root ($HOME, cwd) | `/home/steam/cs2` |
+| CS2 binary | `game/bin/linuxsteamrt64/cs2` |
+| Live content / cfgs | `game/csgo` · `game/csgo/cfg/*.cfg` |
+| CSS plugins on/off | `addons/counterstrikesharp/plugins{,/disabled}` |
+| CSS configs / logs | `addons/counterstrikesharp/{configs,logs}` |
+| gameinfo.gi (metamod patch) | `game/csgo/gameinfo.gi` |
+| Durable override / baked source | `/home/custom_files` · `/home/cs2-modded-server` |
 
-## How the server runs
+## Control
+- `rcon-cli "<cmd>"` — preconfigured (no host/pass). Native usercon port, so it
+  works even in modes that unload the CS2Rcon plugin.
+- Server console → `docker logs` (stdout). No `ps`/`docker`/`ss`/`pkill` inside —
+  restart CS2 via `/proc` (see cs2-server-lifecycle); the supervisor relaunches it.
+- Gamemode = `exec <mode>.cfg` (sets game_type/mode, loads its plugins). Names:
+  `ls game/csgo/cfg/*.cfg` (comp, dm, retake, executes, gg, aim, awp, 1v1, wingman,
+  bhop, kz, surf, prefire, deathrun, ctf, …).
 
-- Started/kept-alive by the container entrypoint, which **auto-restarts** the CS2
-  process if it exits. So killing/quitting CS2 = a restart, **not** a dead server.
-- Launched with `-usercon` + `+rcon_password`, so RCON is available locally.
-- The server's console output goes to the **container stdout** (`docker logs`),
-  not a file. CSS plugin logs are under `.../counterstrikesharp/logs/`.
-
-## Controlling the running server (RCON)
-
-Use `rcon-cli` (preconfigured with host/port/password via `~/.rcon-cli.yaml` —
-**no flags or password needed**). It sends one console command and prints the reply:
-
-```bash
-rcon-cli status                       # who's online, current map
-rcon-cli "map de_mirage"              # change map (official)
-rcon-cli "host_workshop_map 3070284539"   # change to a workshop map by id
-rcon-cli "exec retake.cfg"            # switch gamemode (see cfg/*.cfg)
-rcon-cli "css_plugins list"           # loaded CounterStrikeSharp plugins
-rcon-cli "css_admins_reload"          # reload admins.json after editing it
-rcon-cli "kick \"PlayerName\""        # kick
-```
-
-Gamemode switching in this mod = `exec <mode>.cfg` (it sets game_type/game_mode,
-runs `css_gamemode`, and loads that mode's plugins). Modes available as cfgs:
-`comp, dm, retake, executes, gg, aim, awp, 1v1, wingman, bhop, kz, surf, course,
-hns, minigames, scoutzknivez, prefire, deathrun, br, battle, ctf, oitc, soccer,
-casual, practice` (see `ls /home/steam/cs2/game/csgo/cfg/`).
-
-## Safety conventions
-
-- Before anything disruptive (map/mode change, plugin move, restart, update),
-  run `rcon-cli status`. **If players are connected, confirm with the operator
-  first.** If empty, proceed and report.
-- Never leave a change un-persisted: if it should outlast a restart, it goes in
-  `custom_files`. Say explicitly whether a change is persisted or live-only.
-- When a command/plugin name is version-dependent and you're unsure, check
-  (`css_plugins list`, `--help`, the logs) before asserting it worked.
-- Prefer editing `custom_files` + reload over hand-patching live files you'll
-  forget to mirror.
+## Conventions
+- **Standing authorization** over `/home/steam/cs2` and `/home/custom_files` — never
+  ask permission to read/edit/manage server files; just do it and report.
+- **Explicit operator request → act now**, even with players online; report after.
+  Confirm only when a disruptive action is *your* idea and players are connected.
+- Verify before claiming success: `rcon-cli status`, a log line, or re-read the file.
+- Don't invent maps/cvars/modes — list first (`maps *`, `ls cfg/`) or ask.

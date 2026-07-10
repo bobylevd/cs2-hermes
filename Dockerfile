@@ -62,7 +62,7 @@ COPY home/SOUL.md     /opt/hermes/seed/hermes_home/SOUL.md
 COPY home/USER.md     /opt/hermes/seed/hermes_home/USER.md
 COPY home/config.yaml /opt/hermes/seed/hermes_home/config.yaml
 COPY home/AGENTS.md   /opt/hermes/seed/AGENTS.md
-COPY skills           /opt/hermes/skills
+# cs2 skills are bind-mounted (writable) by docker-compose, not baked in.
 COPY entrypoint.sh    /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && chown -R steam:steam /opt/hermes

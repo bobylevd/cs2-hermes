@@ -1,44 +1,30 @@
-# Hermes Agent configuration for the CS2 modded-server admin container.
-#
-# Seeded to $HERMES_HOME/config.yaml at boot. Secrets/backend/token come from
-# $HERMES_HOME/.env at runtime via ${VAR} interpolation, so the image ships no
-# secrets. See ../env.example for the variables.
+# Hermes config for the CS2 admin container. Seeded to $HERMES_HOME/config.yaml
+# at boot; secrets come from $HERMES_HOME/.env via ${VAR}. See ../env.example.
 
-# --------------------------------------------------------------------------- #
-# LLM backend — OpenAI-compatible by default (Kimi-for-coding / Moonshot,
-# OpenAI Codex, or any OpenAI-compatible endpoint). Fully overridable via env.
-# --------------------------------------------------------------------------- #
+# LLM backend (OpenAI-compatible by default: Kimi for Coding). Overridable via env.
 model:
   default: "${HERMES_MODEL}"
   provider: "${HERMES_PROVIDER}"      # custom | openai-codex | anthropic | openai | auto
   api_key: "${HERMES_API_KEY}"
-  base_url: "${HERMES_BASE_URL}"      # ignored by providers that don't need it
+  base_url: "${HERMES_BASE_URL}"
 
-# --------------------------------------------------------------------------- #
-# Terminal — the agent's hands. Runs shell commands locally, inside this
-# container, as the `steam` user (passwordless sudo). cwd is the server root so
-# AGENTS.md there loads as project context and paths are relative to the server.
-# --------------------------------------------------------------------------- #
+# Shell runs locally in this container as steam (passwordless sudo); cwd = server
+# root so AGENTS.md loads as project context.
 terminal:
   backend: local
   cwd: "/home/steam/cs2"
   timeout: 300
 
-# --------------------------------------------------------------------------- #
-# Skills — the CS2 admin playbooks (read-only, shipped in the image). Hermes
-# also keeps its own self-authored skills + memory under $HERMES_HOME.
-# --------------------------------------------------------------------------- #
+# Autonomous: never prompt the operator for approval (it's a gateway bot). The
+# hardline blocklist (rm -rf /, fork bombs, mkfs, dd to devices) still applies.
+approvals:
+  mode: "off"                         # manual | smart | off
+  timeout: 60
+
+# cs2 skills load from HERMES_HOME/skills/cs2 (bind-mounted from ./skills/cs2).
 skills:
   creation_nudge_interval: 15
-  external_dirs:
-    - /opt/hermes/skills
 
-# --------------------------------------------------------------------------- #
-# Gateway / messaging — how the operator issues commands. Pick ONE platform via
-# GATEWAY_PLATFORM and supply its token in .env. Telegram is the default; a
-# Discord block is included, commented. (Exact keys can vary by Hermes version;
-# the token is also always available as an env var — see README-hermes.md.)
-# --------------------------------------------------------------------------- #
 gateway:
   platform: "${GATEWAY_PLATFORM}"     # telegram | discord
 
@@ -47,7 +33,6 @@ platforms:
     token: "${TELEGRAM_BOT_TOKEN}"
     reply_to_mode: "first"
     guest_mode: false
-
   # discord:
   #   token: "${DISCORD_BOT_TOKEN}"
   #   require_mention: true

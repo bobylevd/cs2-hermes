@@ -19,14 +19,11 @@ services:
     env_file:
       - .env
     volumes:
-      - cs2-volume:/home/steam/          # named volume: the 67GB CS2 install (persists)
-      # Hermes state (SOUL.md, self-authored skills, memory, sessions) on the host,
-      # so you can browse/edit it and it survives restarts. Nested under the volume
-      # above — Docker's more-specific mount wins for this subpath.
+      - cs2-volume:/home/steam/
       - ./hermes-data:/home/steam/cs2/.hermes
-      - ./custom_files:/home/custom_files/   # server-file persistence mirror; agent writes here survive mod updates
+      - ./skills/cs2:/home/steam/cs2/.hermes/skills/cs2
+      - ./custom_files:/home/custom_files/
     ports:
-      # 27015 is the game port AND the RCON port (protected by RCON_PASSWORD).
       - "27015:27015/tcp"
       - "27015:27015/udp"
       - "27020:27020/tcp"

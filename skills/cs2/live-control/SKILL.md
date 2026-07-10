@@ -1,7 +1,7 @@
 ---
 name: cs2-live-control
 description: Live RCON ops - map, gamemode, status, kick, cvars
-version: 1.0.0
+version: 1.1.0
 platforms: [linux]
 metadata:
   hermes:
@@ -12,61 +12,29 @@ metadata:
 
 # CS2 Live Control (RCON)
 
-Control the **running** server without restarting it, via `rcon-cli` (already
-configured — no host/password needed). This is the least-disruptive way to make
-changes; prefer it over restarts.
+Change the running server without a restart, via `rcon-cli` (preconfigured).
 
-## When to Use
-"change map", "enable retakes / switch to <mode>", "who's online", "what map",
-"kick <player>", "restart the round", "set <cvar>", "run <console command>".
+## When
+"change map", "enable <mode>/retakes", "who's online", "kick X", "restart round",
+"set <cvar>", any console command.
 
-## Procedure
-
-**Always start with a status check for disruptive actions:**
+## Do
 ```bash
-rcon-cli status          # hostname, current map, connected players (name + userid)
+rcon-cli status                          # players + current map (start here)
+rcon-cli "map de_mirage"                 # official map
+rcon-cli "host_workshop_map 3070284539"  # workshop id
+rcon-cli "exec retake.cfg"               # gamemode — ls game/csgo/cfg/*.cfg for names
+rcon-cli "kick \"Name\""                 # partial name or userid from status
+rcon-cli "mp_restartgame 1"              # restart round
+rcon-cli "mp_maxrounds 24"               # any cvar
 ```
-If players are connected and the action is disruptive (map/mode change, kick),
-confirm with the operator first (see SOUL.md). If empty, proceed.
+Explicit request → run it now (AGENTS.md), report after.
 
-**Change map** — official name, or a Steam Workshop numeric id:
-```bash
-rcon-cli "map de_mirage"
-rcon-cli "host_workshop_map 3070284539"
-```
-Unsure it's installed? `rcon-cli "maps *"` lists installed maps.
+## Notes
+- Mode settles after a round/map change; if it "didn't take", `mp_restartgame 1`.
+- **Live-only** — these don't survive a restart. To make a mode/cvar the default,
+  edit the cfg in `custom_files` (see cs2-mod-management, cs2-server-lifecycle).
+- Connection refused = server starting or down → cs2-troubleshooting.
 
-**Switch gamemode** — this mod switches modes by exec'ing a cfg (it sets
-game_type/game_mode, runs css_gamemode, loads that mode's plugins):
-```bash
-rcon-cli "exec retake.cfg"      # retakes
-rcon-cli "exec dm.cfg"          # deathmatch
-rcon-cli "exec gg.cfg"          # gungame
-rcon-cli "exec comp.cfg"        # competitive
-```
-Discover the full list: `ls /home/steam/cs2/game/csgo/cfg/*.cfg`. Common modes:
-`comp, dm, retake, executes, gg, aim, awp, 1v1, wingman, bhop, kz, surf, course,
-hns, minigames, scoutzknivez, prefire, deathrun, br, battle, ctf, oitc, soccer,
-casual, practice`.
-
-**Kick / round / cvars:**
-```bash
-rcon-cli "kick \"PlayerName\""      # partial name or userid from `status`
-rcon-cli "mp_restartgame 1"          # restart current round
-rcon-cli "mp_maxrounds 24"           # set a cvar
-```
-
-**Any console command** you know: `rcon-cli "<command>"`.
-
-## Pitfalls
-- A mode change fully settles after a round/map change; if it "didn't take",
-  offer `mp_restartgame 1` or a map change.
-- These are **live-only**. Gamemode/cvar changes made this way do NOT persist a
-  server restart. To make a mode the default, that's a cfg edit — see
-  `cs2-mod-management` / `cs2-server-lifecycle` and the `custom_files` rule.
-- If `rcon-cli` errors with connection refused, the CS2 process is starting or
-  down — check `docker logs` / `cs2-troubleshooting`, don't assume it worked.
-
-## Verification
-Re-run `rcon-cli status` and confirm the map/mode/player list reflects the change.
-Report the actual status back, not just "done".
+## Verify
+Re-run `rcon-cli status`; report the actual map/mode/players, not "done".
