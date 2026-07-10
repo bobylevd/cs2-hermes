@@ -46,7 +46,8 @@ cp -f "$SEED_DIR/hermes_home/config.yaml" "$HERMES_HOME/config.yaml"
   echo "# Auto-generated from the container environment on every boot."
   for v in RCON_HOST RCON_PORT RCON_PASSWORD \
            HERMES_MODEL HERMES_PROVIDER HERMES_API_KEY HERMES_BASE_URL \
-           GATEWAY_PLATFORM TELEGRAM_BOT_TOKEN DISCORD_BOT_TOKEN; do
+           GATEWAY_PLATFORM TELEGRAM_BOT_TOKEN DISCORD_BOT_TOKEN \
+           TELEGRAM_ALLOWED_USERS DISCORD_ALLOWED_USERS GATEWAY_ALLOW_ALL_USERS; do
     printf '%s=%s\n' "$v" "${!v:-}"
   done
 } > "$HERMES_HOME/.env"
