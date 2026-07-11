@@ -1,27 +1,23 @@
-# CS2 modded server + Hermes admin agent — built and run on the server itself.
+# CS2 modded server + Hermes admin agent, as two containers.
+#   git pull && docker compose up -d --build
+#   docker logs -f hermes      # gateway
+#   docker logs -f cs2         # game server
 #
-#   git pull
-#   docker compose up -d --build        # build the thin layer + run
-#   docker compose build --pull         # also refresh the base image
-#   docker logs -f cs2-hermes
-#
-# First run downloads the base image + CS2 (several GB) and is slow.
+# cs2   = official kus image, unmodified. Restarts itself if it exits, so
+#         `rcon-cli quit` from Hermes is a clean restart.
+# hermes = official Hermes image + rcon-cli. Shares the cs2 volumes so it can edit
+#         server files directly, and reaches RCON at cs2:27015 over the network.
 
 services:
-  cs2-hermes:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      # args:
-      #   BASE_IMAGE: ghcr.io/kus/cs2-modded-server:latest   # pin to a digest for reproducible builds
-    image: cs2-hermes:latest
-    container_name: cs2-hermes
+  cs2:
+    image: ghcr.io/kus/cs2-modded-server:latest
+    container_name: cs2
+    restart: unless-stopped
     env_file:
       - .env
     volumes:
-      - cs2-volume:/home/steam/                    # 67GB CS2 install (runtime)
-      - ./hermes:/home/steam/cs2/.hermes           # HERMES_HOME: config, identity, skills, memory
-      - ./cs2:/home/custom_files/                  # CS2 server overrides (custom_files)
+      - cs2-volume:/home/steam/
+      - ./cs2:/home/custom_files/
     ports:
       - "27015:27015/tcp"
       - "27015:27015/udp"
@@ -29,7 +25,21 @@ services:
       - "27020:27020/udp"
     cpu_count: 2
     mem_limit: 4000m
+
+  hermes:
+    build: .
+    image: cs2-hermes:latest
+    container_name: hermes
     restart: unless-stopped
+    command: gateway run
+    env_file:
+      - .env
+    volumes:
+      - ./hermes:/opt/data                 # HERMES_HOME (config, identity, skills, memory)
+      - cs2-volume:/home/steam/            # shared: read/edit CS2 server files
+      - ./cs2:/home/custom_files/          # shared: server-override persistence
+    depends_on:
+      - cs2
 
 volumes:
   cs2-volume:

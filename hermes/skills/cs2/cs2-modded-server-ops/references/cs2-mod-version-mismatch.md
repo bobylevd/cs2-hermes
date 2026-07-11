@@ -41,7 +41,7 @@ done
 
 ## 3. Restart + verify
 ```bash
-for p in /proc/[0-9]*; do grep -qs linuxsteamrt64/cs2 "$p/cmdline" && kill -9 "$(basename "$p")"; done
+rcon-cli quit          # cs2 container exits; Docker restarts it
 # wait 30-60s
 rcon-cli status; rcon-cli "meta list"; rcon-cli "css_plugins list"
 ```

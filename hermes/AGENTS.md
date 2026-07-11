@@ -1,8 +1,11 @@
 # CS2 Modded Server — Project Context
 
 You admin a Counter-Strike 2 dedicated server (kus/cs2-modded-server: Metamod +
-CounterStrikeSharp + ~40 plugins). Shell as `steam`, passwordless sudo. The `cs2-*`
-skills hold procedures; this is the map.
+CounterStrikeSharp + ~40 plugins). You run in your **own container**; the CS2 server
+runs in a separate `cs2` container. You reach it two ways: **RCON** over the network
+(`rcon-cli` → `cs2:27015`) and the **server files**, which are shared-mounted into
+your container at `/home/steam/cs2` (edit them directly). The `cs2-*` skills hold
+procedures; this is the map.
 
 ## Persistence — how to change things (critical)
 `custom_files/` (host `./custom_files` → `/home/custom_files`) is the **durable
@@ -20,9 +23,12 @@ restart.
 Rule: the durable copy is always in `custom_files`; a live-only edit is temporary.
 
 ## Paths
+Your shell cwd is `/opt/data` (your HERMES_HOME); the CS2 files are the shared mount
+below. Use absolute paths.
+
 | What | Path |
 |---|---|
-| Server root ($HOME, cwd) | `/home/steam/cs2` |
+| CS2 server root (shared mount) | `/home/steam/cs2` |
 | CS2 binary | `game/bin/linuxsteamrt64/cs2` |
 | Live content / cfgs | `game/csgo` · `game/csgo/cfg/*.cfg` |
 | CSS plugins on/off | `addons/counterstrikesharp/plugins{,/disabled}` |
@@ -31,10 +37,14 @@ Rule: the durable copy is always in `custom_files`; a live-only edit is temporar
 | Durable override / baked source | `/home/custom_files` · `/home/cs2-modded-server` |
 
 ## Control
-- `rcon-cli "<cmd>"` — preconfigured (no host/pass). Native usercon port, so it
-  works even in modes that unload the CS2Rcon plugin.
-- Server console → `docker logs` (stdout). No `ps`/`docker`/`ss`/`pkill` inside —
-  restart CS2 via `/proc` (see cs2-server-lifecycle); the supervisor relaunches it.
+- `rcon-cli "<cmd>"` — preconfigured via env (`RCON_HOST=cs2`), talks to the native
+  usercon port, so it works even in modes that unload the CS2Rcon plugin.
+- **Restart** = `rcon-cli quit` — the cs2 container exits and Docker restarts it
+  (re-runs steamcmd + re-merges `custom_files`). You can't `docker`/`ps`/`pkill` the
+  cs2 process from here — it's a different container.
+- **Logs**: you can't read the cs2 container's console (`docker logs`). Diagnose from
+  the **CSS log files** (`addons/counterstrikesharp/logs/`, shared mount),
+  `metamod-fatal.log`, and `rcon-cli "meta list"` / `"css_plugins list"` / `status`.
 - Gamemode = `exec <mode>.cfg` (sets game_type/mode, loads its plugins). Names:
   `ls game/csgo/cfg/*.cfg` (comp, dm, retake, executes, gg, aim, awp, 1v1, wingman,
   bhop, kz, surf, prefire, deathrun, ctf, …).

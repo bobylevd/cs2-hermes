@@ -8,11 +8,11 @@ model:
   api_key: "${HERMES_API_KEY}"
   base_url: "${HERMES_BASE_URL}"
 
-# Shell runs locally in this container as steam (passwordless sudo); cwd = server
-# root so AGENTS.md loads as project context.
+# Shell runs locally in the Hermes container. cwd = HERMES_HOME so AGENTS.md loads
+# as project context; the CS2 server files are at /home/steam/cs2 (shared volume).
 terminal:
   backend: local
-  cwd: "/home/steam/cs2"
+  cwd: "/opt/data"
   timeout: 300
 
 # Auto-approve low-risk actions (file edits, normal commands); prompt only on
