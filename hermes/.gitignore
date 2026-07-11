@@ -1,14 +1,14 @@
-# This folder IS the live HERMES_HOME (bind-mounted). Allowlist: ignore everything,
-# then re-include the curated files + the cs2 skills (ours and the ones Hermes
-# writes). Runtime state (memory, sessions, node/, caches, .env) and the bundled
-# skills stay ignored.
-*
-!.gitignore
-!SOUL.md
-!USER.md
-!AGENTS.md
-!config.yaml
-!skills/
-skills/*
-!skills/cs2/
+# This folder IS the live HERMES_HOME (bind-mounted). Ignore top-level entries
+# (anchored /* so it doesn't recurse into re-included dirs), then re-include the
+# curated files + all of skills/cs2 (ours and the skills Hermes writes). Bundled
+# skills and runtime state (memory, sessions, node/, caches, .env) stay ignored.
+/*
+!/.gitignore
+!/SOUL.md
+!/USER.md
+!/AGENTS.md
+!/config.yaml
+!/skills/
+/skills/*
+!/skills/cs2/
 
