@@ -1,9 +1,14 @@
-# This folder IS the live HERMES_HOME (bind-mounted). Hermes writes runtime state
-# here — memory, sessions, logs, node/, caches, .env. Track only curated files.
+# This folder IS the live HERMES_HOME (bind-mounted). Allowlist: ignore everything,
+# then re-include the curated files + the cs2 skills (ours and the ones Hermes
+# writes). Runtime state (memory, sessions, node/, caches, .env) and the bundled
+# skills stay ignored.
 *
 !.gitignore
 !SOUL.md
 !USER.md
 !AGENTS.md
 !config.yaml
+!skills/
+skills/*
+!skills/cs2/
 
