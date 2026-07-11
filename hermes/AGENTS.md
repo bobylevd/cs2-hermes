@@ -50,6 +50,10 @@ below. Use absolute paths.
   bhop, kz, surf, prefire, deathrun, ctf, …).
 
 ## Conventions
+- **Check your skills first.** Before starting a task, look through your `cs2-*`
+  skills and load the relevant one — it holds the procedure, paths, and gotchas so
+  you don't re-derive or repeat past mistakes. After solving something non-trivial,
+  capture it into a skill so it compounds.
 - **Standing authorization** over `/home/steam/cs2` and `/home/custom_files` — never
   ask permission to read/edit/manage server files; just do it and report.
 - **Explicit operator request → act now**, even with players online; report after.
