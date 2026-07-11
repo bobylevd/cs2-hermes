@@ -57,19 +57,22 @@ plus these config surfaces:
 
 | File | Role |
 |------|------|
-| `home/SOUL.md` | Persona — a careful, terse CS2 server admin |
-| `home/AGENTS.md` | Project knowledge — paths, launch model, **the `custom_files` persistence rule**, safety |
-| `home/USER.md` | Who the operator is |
-| `home/config.yaml` | Model (env), terminal backend, gateway, skills dir |
-| `skills/cs2/*` | Playbooks: `live-control`, `mod-management`, `admin-management`, `troubleshooting`, `server-lifecycle` |
+| `hermes/SOUL.md` | Persona — a careful, terse CS2 server admin |
+| `hermes/AGENTS.md` | Project knowledge — paths, launch model, **the `custom_files` persistence rule**, safety |
+| `hermes/USER.md` | Who the operator is |
+| `hermes/config.yaml` | Model (env), terminal backend, approvals, gateway |
+| `hermes/skills/cs2/*` | Playbooks: `live-control`, `mod-management`, `admin-management`, `troubleshooting`, `server-lifecycle`, `cs2-modded-server-ops` |
 
-At runtime Hermes also keeps `MEMORY.md` + a `state.db`, so it remembers what it
-changed across sessions.
+Two bind-mounted folders hold everything: **`hermes/`** *is* HERMES_HOME (the files
+above are git-tracked; Hermes' runtime `memories`/`sessions`/`state.db`/self-authored
+skills live alongside, gitignored), and **`cs2/`** is the server-override
+`custom_files`. Because the curated files are read live from the mount, **config
+and skill changes ship via `git pull` — no image rebuild.** The skills are also
+writable, so Hermes refines them and you commit the improvements.
 
 **Persistence, the one rule:** this mod overwrites live server files from a baked
-copy on every restart, then merges `custom_files/` on top. So the agent is
-instructed to mirror every lasting change into `custom_files/` (bind-mounted to
-`./custom_files` here) — otherwise it's wiped on restart.
+copy on every restart, then merges `custom_files/` on top (bind-mounted to `./cs2`).
+So the durable copy of any change lives in `cs2/` — a live edit alone is wiped on restart.
 
 **Live control:** `rcon-cli` talks straight to the native usercon RCON port, so it
 works even in modes where the in-game `CS2Rcon` plugin is unloaded (comp/MatchZy).
@@ -92,9 +95,10 @@ server. Delete it if you don't want CI.
   connects locally, so restricting external RCON doesn't break it.
 - **No secrets in the image or git** — keys/tokens live in `.env` (gitignored) and
   are written to `$HERMES_HOME/.env` and `~/.rcon-cli.yaml` (chmod 600) at runtime.
-- Hermes acts with a real shell and sudo. Give the bot token only to trusted
-  admins. Its posture: confirm disruptive actions when players are connected,
-  persist everything, verify before claiming success.
+- Hermes acts with a real shell and sudo, and runs `approvals: smart` (auto-approves
+  low-risk actions, prompts only on dangerous ones; a hardline blocklist for
+  `rm -rf /` etc. always applies). Give the bot token only to trusted admins — the
+  Telegram allowlist (`TELEGRAM_ALLOWED_USERS`) is what gates who can command it.
 
 ## Caveats
 
@@ -107,7 +111,12 @@ server. Delete it if you don't want CI.
 
 ## Customizing
 
-- Teach the agent about *your* server (house rules, preferred maps, custom cfgs):
-  edit `home/AGENTS.md`.
-- Add/adjust a playbook: edit `skills/cs2/<skill>/SKILL.md`.
-- `git commit` + on the server `git pull && docker compose up -d --build`.
+Config/identity/skills are git-tracked files in `hermes/`, read live from the
+bind mount — so changes apply with **`git pull` + a restart, no rebuild**:
+
+- Teach the agent about *your* server: edit `hermes/AGENTS.md`.
+- Adjust persona / autonomy: `hermes/SOUL.md`, `hermes/config.yaml`.
+- Add/adjust a playbook: `hermes/skills/cs2/<skill>/SKILL.md`.
+- Commit Hermes' own refinements: on the server, `git add hermes && git commit`.
+- Apply: on the server `git pull`, then `docker compose up -d` (recreate). Only a
+  Dockerfile/dependency change needs `--build`.
