@@ -1,122 +1,106 @@
 # cs2-hermes
 
-A **Counter-Strike 2 modded server with a resident AI admin** in one container.
-It layers a pre-configured **[Hermes Agent](https://hermes-agent.nousresearch.com)**
-on top of the published [`kus/cs2-modded-server`](https://github.com/kus/cs2-modded-server)
-image, so you can run and manage the server by talking to it over chat:
+A **Counter-Strike 2 modded server with a resident AI admin**. Two containers:
+
+- **`cs2`** — the [`kus/cs2-modded-server`](https://github.com/kus/cs2-modded-server)
+  image, unmodified.
+- **`hermes`** — the official [Hermes Agent](https://hermes-agent.nousresearch.com)
+  image + `rcon-cli`, pre-configured to run and administer the server. You talk to it
+  over chat:
 
 > "enable retakes" · "change map to mirage" · "add 7656119… as a moderator"
 > "MatchZy won't load, check the logs" · "who's online?" · "restart the server"
 
 Hermes doesn't just relay RCON — it **administers the server**: edits configs,
 enables/disables plugins, manages admins, reads logs, fixes issues, and persists
-changes correctly. It uses its own shell for filesystem work and `rcon-cli` for
-live, non-disruptive control.
+changes correctly. It manages the `cs2` container over RCON + shared volumes.
 
-## Deploy (build on the server)
+## Architecture
 
-Because it's `FROM ghcr.io/kus/cs2-modded-server:latest`, the machine pulls the
-base image and builds only the thin Hermes layer. No registry account needed.
+```
+┌───────────── cs2 ─────────────┐        ┌──────────── hermes ────────────┐
+│ ghcr.io/kus/cs2-modded-server │        │ nousresearch/hermes-agent       │
+│ (official, unmodified)        │        │  + rcon-cli                     │
+│ restart: unless-stopped       │◄──RCON─┤ rcon-cli → cs2:27015            │
+│ /home/steam (cs2-volume)      │◄─files─┤ shared volumes: edits files     │
+└───────────────────────────────┘        │ gateway → Telegram/Discord      │
+        ▲ shared cs2-volume + ./cs2 ──────┘ /opt/data (./hermes)            │
+        └─────────────────────────────────┴─────────────────────────────────┘
+```
+
+- **RCON**: `rcon-cli` reaches `cs2:27015` over the Docker network.
+- **Files**: the CS2 install (`cs2-volume`) and `custom_files` (`./cs2`) are shared
+  into `hermes`, so it edits server files directly at `/home/steam/cs2`.
+- **Restart**: `rcon-cli quit` → the `cs2` container exits and Docker restarts it
+  (re-runs steamcmd, re-merges `custom_files`). No Docker socket needed.
+
+## Deploy
 
 ```bash
 git clone git@github.com:bobylevd/cs2-hermes.git
 cd cs2-hermes
-cp .env.example .env      # fill in RCON_PASSWORD, LLM backend, gateway token
+cp .env.example .env      # RCON_PASSWORD, LLM backend, gateway token, allowlist
 docker compose up -d --build
-docker logs -f cs2-hermes
+docker logs -f hermes     # gateway   ·   docker logs -f cs2   for the server
 ```
 
-First run downloads the base image + CS2 (several GB) — be patient. Once the
-Hermes gateway is up, message your bot: **"who's online?"** then **"enable retakes"**.
+First run pulls both images and downloads CS2 (tens of GB) — be patient. Once the
+gateway is up, DM your bot: **"who's online?"** then **"change map to mirage"**.
 
-### Update later
-```bash
-git pull
-docker compose up -d --build          # rebuild the layer + restart
-docker compose build --pull && docker compose up -d   # also refresh the base image
-```
-
-Prefer a terminal instead of chat? `docker exec -it cs2-hermes hermes`.
-
-## Configure (`.env`)
+## Configure (`.env`, shared by both containers)
 
 | Variable | What |
 |----------|------|
-| `RCON_PASSWORD` | **Required.** Server admin password; how the agent controls the live server. Use a strong value. |
-| `HERMES_PROVIDER` / `HERMES_BASE_URL` / `HERMES_MODEL` / `HERMES_API_KEY` | LLM backend (Kimi/Moonshot, OpenAI Codex, or any OpenAI-compatible endpoint). Examples in `.env.example`. |
-| `GATEWAY_PLATFORM` | `telegram` or `discord`. |
-| `TELEGRAM_BOT_TOKEN` / `DISCORD_BOT_TOKEN` | Token for the platform you chose. |
+| `RCON_PASSWORD` | **Required.** Server admin password. Use a strong value. |
+| `RCON_HOST` | `cs2` (the service name) — leave as-is. |
+| `HERMES_PROVIDER`/`HERMES_BASE_URL`/`HERMES_MODEL`/`HERMES_API_KEY` | LLM backend. Default is **Kimi for Coding** (`api.kimi.com/coding/v1`, model `kimi-for-coding`). Examples in `.env.example`. |
+| `GATEWAY_PLATFORM` + `TELEGRAM_BOT_TOKEN` | Chat platform + bot token. |
+| `TELEGRAM_ALLOWED_USERS` | **Your** numeric Telegram id(s) — the gateway denies everyone else. Get it from @userinfobot. |
 | `STEAM_ACCOUNT` | GSLT — public/online play only (empty + `LAN=1` for LAN). |
 | `API_KEY` | Steam Web API key — only for Workshop map downloads. |
 
-## How it's built
+## Repo layout — two folders, two mounts
 
-The intelligence is **markdown, not code**. The only added binary is `rcon-cli`
-(a standard tool); everything else is Hermes' built-in shell/file/process tools
-plus these config surfaces:
+| Folder | Mounts to | Holds |
+|--------|-----------|-------|
+| `hermes/` | `/opt/data` (HERMES_HOME) | `SOUL.md`, `USER.md`, `AGENTS.md`, `config.yaml`, `skills/cs2/` — git-tracked. Hermes' runtime (`memories`, `sessions`, `state.db`, bundled skills) lives alongside, gitignored. |
+| `cs2/` | `/home/custom_files` | The server-override `custom_files` (durable persistence). |
 
-| File | Role |
-|------|------|
-| `hermes/SOUL.md` | Persona — a careful, terse CS2 server admin |
-| `hermes/AGENTS.md` | Project knowledge — paths, launch model, **the `custom_files` persistence rule**, safety |
-| `hermes/USER.md` | Who the operator is |
-| `hermes/config.yaml` | Model (env), terminal backend, approvals, gateway |
-| `hermes/skills/cs2/*` | Playbooks: `live-control`, `mod-management`, `admin-management`, `troubleshooting`, `server-lifecycle`, `cs2-modded-server-ops` |
+Everything Hermes *is* — persona, project knowledge, skills — are **git-tracked
+files read live from the `hermes/` mount**. So **config/identity/skill changes ship
+via `git pull` + `docker restart hermes` — no rebuild.** The skills are writable, so
+Hermes refines them and you commit the improvements (`git add hermes && git commit`).
+Only a Dockerfile change (e.g. `rcon-cli` version) needs `docker compose up -d --build`.
 
-Two bind-mounted folders hold everything: **`hermes/`** *is* HERMES_HOME (the files
-above are git-tracked; Hermes' runtime `memories`/`sessions`/`state.db`/self-authored
-skills live alongside, gitignored), and **`cs2/`** is the server-override
-`custom_files`. Because the curated files are read live from the mount, **config
-and skill changes ship via `git pull` — no image rebuild.** The skills are also
-writable, so Hermes refines them and you commit the improvements.
+The one custom thing in the whole stack is the Dockerfile: `FROM
+nousresearch/hermes-agent` + download `rcon-cli`. The image already bundles the
+messaging (Telegram) and Anthropic extras, a shell, and s6 supervision.
 
-**Persistence, the one rule:** this mod overwrites live server files from a baked
-copy on every restart, then merges `custom_files/` on top (bind-mounted to `./cs2`).
-So the durable copy of any change lives in `cs2/` — a live edit alone is wiped on restart.
+## Persistence (the one server-side rule)
 
-**Live control:** `rcon-cli` talks straight to the native usercon RCON port, so it
-works even in modes where the in-game `CS2Rcon` plugin is unloaded (comp/MatchZy).
-Source RCON is a binary protocol bash can't practically speak — hence the one binary.
+The mod rebuilds live `csgo/` from baked mods on every restart, then merges
+`custom_files/` on top. So the **durable** copy of any server-file change lives in
+`cs2/` (→ `/home/custom_files`); a live edit alone is wiped on restart. AGENTS.md and
+the skills drill this into Hermes.
 
-**Restart/update:** the entrypoint *supervises* CS2 (auto-restarts if it exits),
-so the agent can restart/update the server without killing the container, and each
-relaunch re-applies `custom_files`.
+## Skills
 
-## CI
+Hermes **authors its own** `cs2/*` skills from experience (they land in
+`hermes/skills/cs2/`, git-trackable, committable). `cs2-modded-server-ops` seeds
+host-specific conventions and hard-won gotchas (Metamod ABI fixes, retakes spawn
+configs, etc.) — extend it or let Hermes grow new ones.
 
-`.github/workflows/build.yml` builds the image on push/PR as a **validation only**
-(no registry push, no secrets) so breakage is caught before you `git pull` on the
-server. Delete it if you don't want CI.
+## Security
 
-## Security notes
-
-- **RCON is exposed on 27015/tcp** (shared game port), protected by
-  `RCON_PASSWORD`. Use a strong value and firewall it on public servers; the agent
-  connects locally, so restricting external RCON doesn't break it.
-- **No secrets in the image or git** — keys/tokens live in `.env` (gitignored) and
-  are written to `$HERMES_HOME/.env` and `~/.rcon-cli.yaml` (chmod 600) at runtime.
-- Hermes acts with a real shell and sudo, and runs `approvals: smart` (auto-approves
-  low-risk actions, prompts only on dangerous ones; a hardline blocklist for
-  `rm -rf /` etc. always applies). Give the bot token only to trusted admins — the
-  Telegram allowlist (`TELEGRAM_ALLOWED_USERS`) is what gates who can command it.
-
-## Caveats
-
-- The full image build hasn't been run end-to-end here (base pulls the SteamRT
-  runtime; first boot downloads multi-GB CS2). The first `docker compose up --build`
-  is the real test.
-- Hermes' `gateway:`/`platforms:` config keys are version-dependent; tokens are
-  also exported as env vars in the container as a fallback. See
-  `docker exec -it cs2-hermes hermes --help`.
+- **RCON is exposed on 27015/tcp** (shared game port), protected by `RCON_PASSWORD` —
+  use a strong value and firewall it on public servers.
+- **No secrets in the image or git** — keys/tokens live in `.env` (gitignored).
+- Hermes acts with a real shell, `approvals: smart` (auto-approves low-risk work,
+  prompts on genuinely dangerous commands; a hardline blocklist for `rm -rf /` etc.
+  always applies). The **`TELEGRAM_ALLOWED_USERS`** allowlist gates who can command it.
 
 ## Customizing
 
-Config/identity/skills are git-tracked files in `hermes/`, read live from the
-bind mount — so changes apply with **`git pull` + a restart, no rebuild**:
-
-- Teach the agent about *your* server: edit `hermes/AGENTS.md`.
+- Teach it about *your* server: edit `hermes/AGENTS.md`.
 - Adjust persona / autonomy: `hermes/SOUL.md`, `hermes/config.yaml`.
-- Add/adjust a playbook: `hermes/skills/cs2/<skill>/SKILL.md`.
-- Commit Hermes' own refinements: on the server, `git add hermes && git commit`.
-- Apply: on the server `git pull`, then `docker compose up -d` (recreate). Only a
-  Dockerfile/dependency change needs `--build`.
+- Then: `git commit` → on the server `git pull && docker restart hermes`.
