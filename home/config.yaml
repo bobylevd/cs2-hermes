@@ -15,10 +15,11 @@ terminal:
   cwd: "/home/steam/cs2"
   timeout: 300
 
-# Autonomous: never prompt the operator for approval (it's a gateway bot). The
-# hardline blocklist (rm -rf /, fork bombs, mkfs, dd to devices) still applies.
+# Auto-approve low-risk actions (file edits, normal commands); prompt only on
+# genuinely dangerous ones. Hardline blocklist (rm -rf /, fork bombs, mkfs, dd to
+# devices) always applies.
 approvals:
-  mode: "off"                         # manual | smart | off
+  mode: "smart"                       # manual | smart | off
   timeout: 60
 
 # cs2 skills load from HERMES_HOME/skills/cs2 (bind-mounted from ./skills/cs2).
