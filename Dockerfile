@@ -57,17 +57,16 @@ RUN /opt/hermes/seed/hermes_home/bin/uv pip install --link-mode=copy \
       '/usr/local/lib/hermes-agent[messaging,anthropic]' \
     && /usr/local/lib/hermes-agent/venv/bin/python -c "import telegram, discord, anthropic"
 
-# --- Our identity, project context, config, and admin skills --------------- #
-COPY home/SOUL.md     /opt/hermes/seed/hermes_home/SOUL.md
-COPY home/USER.md     /opt/hermes/seed/hermes_home/USER.md
-COPY home/config.yaml /opt/hermes/seed/hermes_home/config.yaml
-COPY home/AGENTS.md   /opt/hermes/seed/AGENTS.md
-# cs2 skills are bind-mounted (writable) by docker-compose, not baked in.
+# Identity, config, and skills are NOT baked in — docker-compose bind-mounts the
+# ./hermes folder as HERMES_HOME, so they're git-tracked and edit-via-git-pull.
+# Only the entrypoint is baked. /opt/hermes/seed/hermes_home holds the installer's
+# runtime assets (bundled skills, node, uv) that the entrypoint seeds if absent.
 COPY entrypoint.sh    /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && chown -R steam:steam /opt/hermes
 
-# Runtime Hermes home (persisted via the cs2 volume, reseeded on boot).
+# HERMES_HOME is the bind-mounted ./hermes folder (curated files from git +
+# runtime state), nested in the cs2 volume path.
 ENV HERMES_HOME=/home/steam/cs2/.hermes
 
 USER steam

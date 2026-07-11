@@ -19,10 +19,9 @@ services:
     env_file:
       - .env
     volumes:
-      - cs2-volume:/home/steam/
-      - ./hermes-data:/home/steam/cs2/.hermes
-      - ./skills/cs2:/home/steam/cs2/.hermes/skills/cs2
-      - ./custom_files:/home/custom_files/
+      - cs2-volume:/home/steam/                    # 67GB CS2 install (runtime)
+      - ./hermes:/home/steam/cs2/.hermes           # HERMES_HOME: config, identity, skills, memory
+      - ./cs2:/home/custom_files/                  # CS2 server overrides (custom_files)
     ports:
       - "27015:27015/tcp"
       - "27015:27015/udp"

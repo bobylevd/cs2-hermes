@@ -1,0 +1,11 @@
+# This folder IS the live HERMES_HOME (bind-mounted). Hermes writes runtime state
+# here — memory, sessions, logs, node/, caches, .env. Track only curated files.
+*
+!.gitignore
+!SOUL.md
+!USER.md
+!AGENTS.md
+!config.yaml
+!skills/
+skills/*
+!skills/cs2/

@@ -44,15 +44,13 @@ HERMES_HOME="${HERMES_HOME:-${HOME%/}/.hermes}"
 export HERMES_HOME
 SEED_DIR="/opt/hermes/seed"
 
-# ---- seed Hermes home ($HERMES_HOME) -------------------------------------- #
-# Everything here is seeded ONLY IF ABSENT so that edits Hermes (or you) make at
-# runtime survive restarts — SOUL.md, USER.md, self-authored skills, and memory
-# all persist. The one exception is config.yaml (machine plumbing / ${VAR}
-# templating), which we always refresh so image fixes ship. .env is regenerated
-# from the container environment (the authoritative config surface).
+# ---- seed Hermes home ($HERMES_HOME = ./hermes bind mount) ---------------- #
+# Curated files (SOUL.md, USER.md, AGENTS.md, config.yaml, skills/cs2) come from
+# the git-tracked ./hermes bind mount. Here we only seed the installer's runtime
+# assets (bundled skills, node, uv) if absent — cp -rn never clobbers the git
+# files — and regenerate .env from the container environment.
 mkdir -p "$HERMES_HOME"
 cp -rn "$SEED_DIR/hermes_home/." "$HERMES_HOME/" 2>/dev/null || true
-cp -f "$SEED_DIR/hermes_home/config.yaml" "$HERMES_HOME/config.yaml"
 {
   echo "# Auto-generated from the container environment on every boot."
   for v in RCON_HOST RCON_PORT RCON_PASSWORD \
@@ -64,10 +62,10 @@ cp -f "$SEED_DIR/hermes_home/config.yaml" "$HERMES_HOME/config.yaml"
 } > "$HERMES_HOME/.env"
 chmod 600 "$HERMES_HOME/.env"
 
-# ---- AGENTS.md into the server root (loaded as project context) ----------- #
-# Seed only if absent so runtime edits persist (delete it to reseed from image).
+# ---- AGENTS.md is loaded as project context from the server-root cwd. Symlink
+# it to the copy in HERMES_HOME so it lives in the ./hermes folder (git, one source).
 mkdir -p "$HOME"
-cp -n "$SEED_DIR/AGENTS.md" "$HOME/AGENTS.md" 2>/dev/null || true
+ln -sf "$HERMES_HOME/AGENTS.md" "$HOME/AGENTS.md"
 
 # ---- rcon-cli config so the agent runs `rcon-cli "<cmd>"` with no secrets --- #
 cat > "$HOME/.rcon-cli.yaml" <<EOF
